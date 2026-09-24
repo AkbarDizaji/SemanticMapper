@@ -1,6 +1,20 @@
 # SemanticMapper
 
-Map JSON or XML into your C# models when the source field names don't match your property names. Fields are matched by **meaning**, not by string similarity or naming conventions. For example, `given_name` maps to `FirstName` and `dob` maps to `BirthDate`.
+Map JSON or XML into your C# models when the source field names don't match your property names. Fields are matched by **meaning**, not by string similarity, aliases or naming conventions.
+
+```text
+given_name   ->  FirstName
+surname      ->  LastName
+dob          ->  BirthDate
+address.town ->  Address.City
+```
+
+No attributes, no mapping rules: you write a plain C# class and call `MapAsync<T>`.
+
+| Package | Purpose |
+| --- | --- |
+| `SemanticMapper.Core` | The mapper: parsing, matching policy, value conversion, diagnostics and caching. |
+| `SemanticMapper.Jev` | The semantic matcher, powered by the [TypeSafe](https://docs.typesafe.ai) Jev model. |
 
 ## 1. Install
 
@@ -34,7 +48,9 @@ builder.Services
 
 ## 4. Define a model
 
-Use a class with a public parameterless constructor and settable (or `init`) properties. Nested classes and scalar collections work too.
+Use a class with a public parameterless constructor and settable (or `init`) properties. Nested classes and scalar collections (`List<string>`, `int[]`, …) work too.
+
+Supported property types: strings, numbers, `bool`, enums (by name), `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan`, `Guid`, `Uri` and their nullable forms.
 
 ```csharp
 public class Customer
@@ -80,7 +96,14 @@ Both of these inputs produce the same `Customer`:
 
 ## 6. Choose how strict to be
 
-By default, a match that is uncertain is skipped and the property keeps its default value. To fail instead, use `Throw`:
+A match is accepted when its score is at least `MinimumConfidence` **and** it beats the next-best candidate by at least `MinimumConfidenceGap`. When a match fails either rule, the configured behavior applies:
+
+| Behavior | What happens |
+| --- | --- |
+| `LeaveDefault` (default) | The property is skipped and keeps its default value. |
+| `Throw` | `MapAsync` throws `UnsafeMappingException`, listing every failed field. |
+| `UseBestMatch` | The top candidate is used anyway. |
+
 
 ```csharp
 builder.Services
@@ -127,7 +150,7 @@ result.Diagnostics.UnmappedTargetPaths;         // properties nothing mapped to
 result.UsedCachedPlan;                          // true = no provider call was made
 ```
 
-The mapper caches a plan for each input shape. Later documents with the same field paths skip the provider call.
+The mapper caches a plan for each input shape. Later documents with the same field paths skip the provider call, so only the first document of a given shape costs an API request. Diagnostics and logs never contain source values.
 
 ## Optional extras
 
