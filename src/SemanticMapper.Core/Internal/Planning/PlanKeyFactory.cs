@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using SemanticMapper.Caching;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Planning;
 

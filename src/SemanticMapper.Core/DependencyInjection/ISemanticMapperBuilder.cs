@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SemanticMapper;
+namespace SemanticMapper.DependencyInjection;
 
 /// <summary>Configures SemanticMapper services. Provider packages add extension methods to this type.</summary>
 public interface ISemanticMapperBuilder

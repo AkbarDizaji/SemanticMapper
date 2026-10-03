@@ -1,3 +1,5 @@
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Schema;
 
 /// <summary>Classifies CLR types into scalar kinds and supported collections.</summary>

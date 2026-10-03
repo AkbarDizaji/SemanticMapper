@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>How a source field's selected match relates to the confidence rules.</summary>
 public enum MatchStatus

@@ -1,4 +1,7 @@
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Exceptions;
 using SemanticMapper.Internal.Parsing;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Core.Tests;
 

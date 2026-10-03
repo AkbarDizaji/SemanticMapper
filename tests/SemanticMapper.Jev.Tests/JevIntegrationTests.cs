@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Jev.Tests;
 

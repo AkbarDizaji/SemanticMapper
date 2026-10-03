@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// The normalized kind of a field value, shared by source and destination fields.

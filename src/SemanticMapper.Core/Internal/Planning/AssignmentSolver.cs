@@ -1,3 +1,7 @@
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Planning;
 
 /// <summary>

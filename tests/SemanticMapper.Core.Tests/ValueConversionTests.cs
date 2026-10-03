@@ -1,4 +1,5 @@
 using SemanticMapper.Core.Tests.Infrastructure;
+using SemanticMapper.Exceptions;
 
 namespace SemanticMapper.Core.Tests;
 

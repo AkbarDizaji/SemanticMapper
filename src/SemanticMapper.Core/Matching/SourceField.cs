@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// A leaf field extracted from a JSON or XML source document.

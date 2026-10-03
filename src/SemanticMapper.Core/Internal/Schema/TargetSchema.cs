@@ -1,3 +1,5 @@
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Schema;
 
 /// <summary>Reflection metadata for a destination type.</summary>

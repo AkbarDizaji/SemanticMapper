@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>Thrown when the input is not a supported JSON or XML document.</summary>
 public class InvalidSourceDocumentException : SemanticMapperException

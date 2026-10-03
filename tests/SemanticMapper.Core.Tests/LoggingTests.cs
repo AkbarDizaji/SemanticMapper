@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SemanticMapper.Core.Tests.Infrastructure;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Core.Tests;
 

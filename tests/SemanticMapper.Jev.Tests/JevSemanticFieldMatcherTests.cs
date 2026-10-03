@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Jev.Tests;
 

@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Schema;
 

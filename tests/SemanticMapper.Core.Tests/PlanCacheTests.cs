@@ -1,4 +1,7 @@
+using SemanticMapper.Caching;
 using SemanticMapper.Core.Tests.Infrastructure;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Core.Tests;
 

@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using SemanticMapper.Caching;
 using SemanticMapper.Core.Tests.Infrastructure;
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Core.Tests;
 

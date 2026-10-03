@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
-namespace SemanticMapper;
+namespace SemanticMapper.Caching;
 
 /// <summary>
 /// A thread-safe, size-bounded, in-process <see cref="IMappingPlanCache"/>.

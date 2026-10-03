@@ -1,3 +1,5 @@
+using SemanticMapper.Exceptions;
+
 namespace SemanticMapper.Internal.Parsing;
 
 /// <summary>Detects the document format and flattens it into source fields.</summary>

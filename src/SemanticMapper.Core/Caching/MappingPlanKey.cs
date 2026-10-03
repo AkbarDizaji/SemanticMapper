@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Caching;
 
 /// <summary>
 /// A stable key identifying a mapping plan.

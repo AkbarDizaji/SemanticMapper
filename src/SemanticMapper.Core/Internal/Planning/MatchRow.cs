@@ -1,3 +1,5 @@
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Planning;
 
 /// <summary>One row of the candidate matrix: a source field and its validated scores.</summary>

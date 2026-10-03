@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>
 /// A destination candidate and the confidence the matcher gave it for one source field.

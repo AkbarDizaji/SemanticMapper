@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>Thrown when a source value cannot be converted to its destination property type.</summary>
 /// <remarks>The message deliberately excludes the value, which may be sensitive.</remarks>

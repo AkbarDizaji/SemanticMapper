@@ -1,5 +1,8 @@
 using System.Xml;
 using System.Xml.Linq;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Parsing;
 

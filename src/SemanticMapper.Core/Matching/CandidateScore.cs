@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// A matcher's confidence that a source field corresponds to a destination candidate.

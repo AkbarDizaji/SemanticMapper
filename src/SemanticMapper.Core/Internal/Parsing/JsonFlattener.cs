@@ -1,4 +1,7 @@
 using System.Text.Json;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Parsing;
 

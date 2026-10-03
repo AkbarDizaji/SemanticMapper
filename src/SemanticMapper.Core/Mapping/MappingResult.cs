@@ -1,4 +1,6 @@
-namespace SemanticMapper;
+using SemanticMapper.Diagnostics;
+
+namespace SemanticMapper.Mapping;
 
 /// <summary>
 /// The outcome of a successful mapping.

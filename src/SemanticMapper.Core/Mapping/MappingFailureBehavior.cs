@@ -1,4 +1,6 @@
-namespace SemanticMapper;
+using SemanticMapper.Exceptions;
+
+namespace SemanticMapper.Mapping;
 
 /// <summary>
 /// What the mapper does when a match does not satisfy the confidence rules.

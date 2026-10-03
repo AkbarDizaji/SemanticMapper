@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Mapping;
 
 /// <summary>
 /// Options that control how semantic matches are accepted.

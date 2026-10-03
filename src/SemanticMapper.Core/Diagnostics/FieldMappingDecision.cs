@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
-namespace SemanticMapper;
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>
 /// The mapper's decision for a single source field, including every candidate score.

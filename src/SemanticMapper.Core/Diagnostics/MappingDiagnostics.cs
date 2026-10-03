@@ -1,4 +1,7 @@
-namespace SemanticMapper;
+using SemanticMapper.Caching;
+using SemanticMapper.Matching;
+
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>
 /// Diagnostics for a mapping: every source-field decision with all candidate scores.

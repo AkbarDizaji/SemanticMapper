@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// Metadata about a settable property on the destination type that a source field can map to.

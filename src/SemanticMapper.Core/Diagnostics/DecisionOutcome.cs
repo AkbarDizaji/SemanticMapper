@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>What the mapper did with a source field.</summary>
 public enum DecisionOutcome

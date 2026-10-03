@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>The base type for exceptions thrown by SemanticMapper.</summary>
 public class SemanticMapperException : Exception

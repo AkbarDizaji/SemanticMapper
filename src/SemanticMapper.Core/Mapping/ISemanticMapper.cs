@@ -1,4 +1,6 @@
-namespace SemanticMapper;
+using SemanticMapper.Exceptions;
+
+namespace SemanticMapper.Mapping;
 
 /// <summary>
 /// Maps JSON or XML documents into C# models by the semantic meaning of their field names.

@@ -41,6 +41,9 @@ export TYPESAFE_API_KEY=tsk_...            # environment variable
 ## 3. Register the mapper
 
 ```csharp
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Jev;
+
 builder.Services
     .AddSemanticMapper()
     .UseJev();
@@ -72,7 +75,7 @@ public class Address
 Inject `ISemanticMapper` and call `MapAsync<T>`. It detects JSON or XML automatically.
 
 ```csharp
-using SemanticMapper;
+using SemanticMapper.Mapping;
 
 public class CustomerImporter(ISemanticMapper mapper)
 {
@@ -106,6 +109,8 @@ A match is accepted when its score is at least `MinimumConfidence` **and** it be
 
 
 ```csharp
+using SemanticMapper.Mapping;
+
 builder.Services
     .AddSemanticMapper(o =>
     {
@@ -122,6 +127,8 @@ Source fields that have no counterpart in your model are ignored. They never cau
 ## 7. Handle errors
 
 ```csharp
+using SemanticMapper.Exceptions;
+
 try
 {
     var customer = (await mapper.MapAsync<Customer>(payload)).Value;
@@ -163,6 +170,8 @@ builder.Services.AddHttpClient(JevDefaults.HttpClientName).AddStandardResilience
 **Your own matcher** instead of Jev:
 
 ```csharp
+using SemanticMapper.Matching;
+
 public class MyMatcher : ISemanticFieldMatcher
 {
     public string Version => "my-matcher-v1";   // change this whenever scoring changes

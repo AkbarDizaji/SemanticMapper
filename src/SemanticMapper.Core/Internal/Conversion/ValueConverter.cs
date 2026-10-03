@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Globalization;
 using System.Xml;
+using SemanticMapper.Exceptions;
 using SemanticMapper.Internal.Schema;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Conversion;
 

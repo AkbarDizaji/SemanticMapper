@@ -1,4 +1,6 @@
-namespace SemanticMapper;
+using SemanticMapper.Diagnostics;
+
+namespace SemanticMapper.Caching;
 
 /// <summary>
 /// A reusable mapping from a source schema to a destination type, created after a successful mapping.

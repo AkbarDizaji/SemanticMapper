@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// Scores how well a source field matches each destination candidate by semantic meaning.

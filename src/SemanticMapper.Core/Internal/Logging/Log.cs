@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Internal.Logging;
 

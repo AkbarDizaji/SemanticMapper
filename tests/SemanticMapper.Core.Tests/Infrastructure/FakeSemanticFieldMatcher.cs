@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Core.Tests.Infrastructure;
 

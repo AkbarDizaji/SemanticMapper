@@ -1,4 +1,5 @@
 using System.Reflection;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Internal.Schema;
 

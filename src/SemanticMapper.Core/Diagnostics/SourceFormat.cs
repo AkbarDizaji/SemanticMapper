@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Diagnostics;
 
 /// <summary>The detected format of a source document.</summary>
 public enum SourceFormat

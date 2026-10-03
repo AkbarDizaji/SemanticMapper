@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Mapping;
 
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>
 /// Thrown when one or more matches violate the confidence rules and the configured

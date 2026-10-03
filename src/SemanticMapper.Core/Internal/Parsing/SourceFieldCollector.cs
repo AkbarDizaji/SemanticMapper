@@ -1,3 +1,7 @@
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Exceptions;
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Parsing;
 
 /// <summary>Accumulates flattened fields in document order and rejects duplicate paths.</summary>

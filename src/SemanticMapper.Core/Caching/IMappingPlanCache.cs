@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Caching;
 
 /// <summary>
 /// Stores mapping plans so documents with a known schema can be mapped without calling the semantic matcher.

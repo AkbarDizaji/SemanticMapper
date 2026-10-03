@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>
 /// Thrown when a semantic matcher fails or returns an invalid result. Provider packages derive

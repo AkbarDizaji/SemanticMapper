@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Caching;
 
 /// <summary>Options for <see cref="InMemoryMappingPlanCache"/>.</summary>
 public sealed class InMemoryMappingPlanCacheOptions

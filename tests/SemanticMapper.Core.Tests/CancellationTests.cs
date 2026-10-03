@@ -1,3 +1,4 @@
+using SemanticMapper.Caching;
 using SemanticMapper.Core.Tests.Infrastructure;
 
 namespace SemanticMapper.Core.Tests;

@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Options;
+using SemanticMapper.Caching;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Core.Tests.Infrastructure;
 

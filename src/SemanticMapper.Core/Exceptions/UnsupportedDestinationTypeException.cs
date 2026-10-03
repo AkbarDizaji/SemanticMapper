@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Exceptions;
 
 /// <summary>Thrown when a destination type cannot be constructed or has no mappable properties.</summary>
 public class UnsupportedDestinationTypeException : SemanticMapperException

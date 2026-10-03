@@ -1,3 +1,6 @@
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Matching;
+
 namespace SemanticMapper.Internal.Parsing;
 
 /// <summary>A parsed document normalized into leaf fields, independent of its original format.</summary>

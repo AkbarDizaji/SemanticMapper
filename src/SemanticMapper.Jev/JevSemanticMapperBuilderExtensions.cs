@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SemanticMapper;
-using SemanticMapper.Jev;
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Matching;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace SemanticMapper.Jev;
 
 /// <summary>Registers the TypeSafe Jev semantic matcher.</summary>
 public static class JevSemanticMapperBuilderExtensions

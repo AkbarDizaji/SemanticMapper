@@ -1,4 +1,4 @@
-namespace SemanticMapper;
+namespace SemanticMapper.Matching;
 
 /// <summary>
 /// The scores an <see cref="ISemanticFieldMatcher"/> produced for one source field.

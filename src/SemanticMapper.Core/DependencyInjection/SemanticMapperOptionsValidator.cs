@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
+using SemanticMapper.Mapping;
 
-namespace SemanticMapper;
+namespace SemanticMapper.DependencyInjection;
 
 internal sealed class SemanticMapperOptionsValidator : IValidateOptions<SemanticMapperOptions>
 {

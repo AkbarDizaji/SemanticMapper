@@ -1,8 +1,11 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using SemanticMapper;
+using SemanticMapper.Caching;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace SemanticMapper.DependencyInjection;
 
 /// <summary>Registers SemanticMapper services.</summary>
 public static class SemanticMapperServiceCollectionExtensions

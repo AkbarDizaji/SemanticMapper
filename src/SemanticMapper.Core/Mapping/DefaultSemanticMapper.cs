@@ -2,13 +2,18 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using SemanticMapper.Caching;
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Exceptions;
 using SemanticMapper.Internal.Conversion;
 using SemanticMapper.Internal.Logging;
 using SemanticMapper.Internal.Parsing;
 using SemanticMapper.Internal.Planning;
 using SemanticMapper.Internal.Schema;
+using SemanticMapper.Matching;
 
-namespace SemanticMapper;
+namespace SemanticMapper.Mapping;
 
 /// <summary>
 /// The default <see cref="ISemanticMapper"/>: parses the document, reuses or builds a mapping plan,

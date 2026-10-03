@@ -2,6 +2,9 @@ using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using SemanticMapper.DependencyInjection;
+using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Jev.Tests;
 

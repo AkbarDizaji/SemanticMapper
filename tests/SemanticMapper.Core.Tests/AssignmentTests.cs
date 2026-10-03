@@ -1,4 +1,6 @@
 using SemanticMapper.Core.Tests.Infrastructure;
+using SemanticMapper.Diagnostics;
+using SemanticMapper.Mapping;
 
 namespace SemanticMapper.Core.Tests;
 
