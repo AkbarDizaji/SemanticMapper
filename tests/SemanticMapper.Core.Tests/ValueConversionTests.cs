@@ -109,6 +109,53 @@ public class ValueConversionTests
         Assert.DoesNotContain("99999999999", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("1", true)]
+    [InlineData("0", false)]
+    [InlineData("False", false)]
+    public async Task Booleans_accept_numeric_and_textual_forms(string text, bool expected)
+    {
+        var value = await MapAsync($$"""{ "IsActive": "{{text}}" }""");
+
+        Assert.Equal(expected, value.IsActive);
+    }
+
+    [Fact]
+    public async Task Whole_number_decimals_convert_to_integers()
+    {
+        var value = await MapAsync("""{ "Count": "3.0", "Big": 1e3 }""");
+
+        Assert.Equal(3, value.Count);
+        Assert.Equal(1000L, value.Big);
+    }
+
+    [Fact]
+    public async Task Alternative_textual_forms_convert_to_enums_dates_and_durations()
+    {
+        var value = await MapAsync("""{ "Status": "SUSPENDED", "Day": "1993-06-10T08:00:00", "Duration": "PT1H30M" }""");
+
+        Assert.Equal(AccountStatus.Suspended, value.Status);
+        Assert.Equal(new DateOnly(1993, 6, 10), value.Day);
+        Assert.Equal(TimeSpan.FromMinutes(90), value.Duration);
+    }
+
+    [Fact]
+    public async Task Null_item_in_a_collection_of_non_nullable_values_throws()
+    {
+        var ex = await Assert.ThrowsAsync<ValueConversionException>(() => MapAsync("""{ "Scores": [1, null] }"""));
+
+        Assert.Equal("Scores", ex.TargetPath);
+    }
+
+    [Fact]
+    public async Task Arrays_and_scalars_are_never_assigned_across_shapes()
+    {
+        var value = await MapAsync("""{ "Count": [1, 2], "Tags": "a" }""");
+
+        Assert.Equal(0, value.Count);
+        Assert.Empty(value.Tags);
+    }
+
     [Fact]
     public async Task Xml_values_convert_the_same_way_as_json()
     {
