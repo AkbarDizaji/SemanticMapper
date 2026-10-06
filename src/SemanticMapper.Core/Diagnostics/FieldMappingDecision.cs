@@ -56,6 +56,19 @@ public sealed class FieldMappingDecision
     /// <summary>Gets a value indicating whether the source value is written to <see cref="SelectedTargetPath"/>.</summary>
     public bool IsApplied => Outcome == DecisionOutcome.Applied;
 
+    /// <summary>Gets the selected candidate when one was selected, so callers do not depend on which nullable fields are set together.</summary>
+    internal bool TryGetSelection(out SelectedMatch selection)
+    {
+        if (SelectedTargetPath is { } path && SelectedConfidence is { } confidence && ConfidenceGap is { } gap)
+        {
+            selection = new SelectedMatch(path, confidence, gap);
+            return true;
+        }
+
+        selection = default;
+        return false;
+    }
+
     /// <summary>Returns a multi-line, human-readable description of the decision.</summary>
     public override string ToString()
     {

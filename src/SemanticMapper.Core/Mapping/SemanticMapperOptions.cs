@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace SemanticMapper.Mapping;
 
 /// <summary>
@@ -31,4 +33,15 @@ public sealed class SemanticMapperOptions
 
     /// <summary>Gets or sets the maximum nesting depth of source documents and destination types. Default 32.</summary>
     public int MaxDepth { get; set; } = 32;
+
+    /// <summary>
+    /// Gets a stable description of every option that affects mapping decisions, for use in plan keys.
+    /// Options that only affect execution (concurrency, depth) are not part of it.
+    /// </summary>
+    internal string PolicyFingerprint => string.Create(
+        CultureInfo.InvariantCulture,
+        $"{MinimumConfidence:R}|{MinimumConfidenceGap:R}|{OnLowConfidence}|{OnAmbiguousMatch}");
+
+    /// <summary>Copies the options so later mutation of the original cannot affect the copy.</summary>
+    internal SemanticMapperOptions Clone() => (SemanticMapperOptions)MemberwiseClone();
 }

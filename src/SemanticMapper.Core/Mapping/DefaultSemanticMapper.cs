@@ -41,7 +41,8 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
     {
         ArgumentNullException.ThrowIfNull(matcher);
         _matcher = matcher;
-        _options = Snapshot(options?.Value ?? new SemanticMapperOptions());
+        // Options are copied so later mutation of the options object cannot desynchronize plan keys and decisions.
+        _options = (options?.Value ?? new SemanticMapperOptions()).Clone();
         _cache = cache ?? new InMemoryMappingPlanCache();
         _logger = logger ?? (ILogger)NullLogger.Instance;
 
@@ -169,30 +170,37 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
 
         foreach (var decision in decisions)
         {
-            var target = decision.SelectedTargetPath;
-            switch (decision.Status)
+            if (!decision.TryGetSelection(out var selection))
             {
-                case MatchStatus.NoMatch:
-                    Log.NoMatch(_logger, decision.SourcePath);
-                    continue;
-                case MatchStatus.Conflict:
+                if (decision.Status == MatchStatus.Conflict)
+                {
                     LogConflict(decision);
-                    continue;
-                case MatchStatus.LowConfidence:
-                    Log.LowConfidence(_logger, decision.SourcePath, target!, decision.SelectedConfidence!.Value, decision.MinimumConfidence, decision.AppliedBehavior!.Value);
+                }
+                else
+                {
+                    Log.NoMatch(_logger, decision.SourcePath);
+                }
+
+                continue;
+            }
+
+            switch (decision.Status, decision.AppliedBehavior)
+            {
+                case (MatchStatus.LowConfidence, { } behavior):
+                    Log.LowConfidence(_logger, decision.SourcePath, selection.TargetPath, selection.Confidence, decision.MinimumConfidence, behavior);
                     break;
-                case MatchStatus.Ambiguous:
-                    Log.Ambiguous(_logger, decision.SourcePath, target!, decision.SelectedConfidence!.Value, decision.ConfidenceGap!.Value, decision.MinimumConfidenceGap, decision.AppliedBehavior!.Value);
+                case (MatchStatus.Ambiguous, { } behavior):
+                    Log.Ambiguous(_logger, decision.SourcePath, selection.TargetPath, selection.Confidence, selection.Gap, decision.MinimumConfidenceGap, behavior);
                     break;
             }
 
             if (decision.IsApplied)
             {
-                Log.CandidateSelected(_logger, decision.SourcePath, target!, decision.SelectedConfidence!.Value, decision.ConfidenceGap!.Value, decision.Status);
+                Log.CandidateSelected(_logger, decision.SourcePath, selection.TargetPath, selection.Confidence, selection.Gap, decision.Status);
             }
             else
             {
-                Log.CandidateRejected(_logger, target!, decision.SourcePath, decision.Outcome == DecisionOutcome.Failed ? "mapping failed" : "left at default");
+                Log.CandidateRejected(_logger, selection.TargetPath, decision.SourcePath, decision.Outcome == DecisionOutcome.Failed ? "mapping failed" : "left at default");
             }
         }
     }
@@ -219,13 +227,13 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
 
         foreach (var decision in plan.Decisions)
         {
-            if (!decision.IsApplied || !sources.TryGetValue(decision.SourcePath, out var source))
+            if (!decision.IsApplied || !decision.TryGetSelection(out var selection) || !sources.TryGetValue(decision.SourcePath, out var source))
             {
                 continue;
             }
 
-            var member = schema.Find(decision.SelectedTargetPath!)
-                ?? throw new SemanticMapperException($"The mapping plan refers to '{decision.SelectedTargetPath}', which does not exist on '{schema.Type.FullName}'.");
+            var member = schema.Find(selection.TargetPath)
+                ?? throw new SemanticMapperException($"The mapping plan refers to '{selection.TargetPath}', which does not exist on '{schema.Type.FullName}'.");
 
             if (ValueConverter.TryConvert(source, member, out var value))
             {
@@ -257,7 +265,11 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
 
     private static IReadOnlyList<string> UnmappedTargets(TargetSchema schema, IReadOnlyList<FieldMappingDecision> decisions)
     {
-        var applied = decisions.Where(d => d.IsApplied).Select(d => d.SelectedTargetPath!).ToHashSet(StringComparer.Ordinal);
+        var applied = decisions
+            .Where(d => d.IsApplied)
+            .Select(d => d.TryGetSelection(out var selection) ? selection.TargetPath : null)
+            .OfType<string>()
+            .ToHashSet(StringComparer.Ordinal);
         return [.. schema.Fields.Select(f => f.Path).Where(p => !applied.Contains(p))];
     }
 
@@ -277,15 +289,4 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
             UnmappedTargetPaths = unmappedTargets,
             UnsupportedSourcePaths = document.UnsupportedPaths,
         };
-
-    // Options are copied so later mutation of the options object cannot desynchronize plan keys and decisions.
-    private static SemanticMapperOptions Snapshot(SemanticMapperOptions options) => new()
-    {
-        MinimumConfidence = options.MinimumConfidence,
-        MinimumConfidenceGap = options.MinimumConfidenceGap,
-        OnLowConfidence = options.OnLowConfidence,
-        OnAmbiguousMatch = options.OnAmbiguousMatch,
-        MaxConcurrentMatches = options.MaxConcurrentMatches,
-        MaxDepth = options.MaxDepth,
-    };
 }

@@ -35,18 +35,19 @@ internal static class XmlFlattener
             throw new InvalidSourceDocumentException("The source document is not valid XML.", ex);
         }
 
-        var collector = new SourceFieldCollector();
-        VisitElement(document.Root!, parent: null, depth: 1, maxDepth, collector);
-        return collector.Build(SourceFormat.Xml);
+        var walk = new XmlWalk(maxDepth, new SourceFieldCollector());
+        VisitElement(document.Root!, parent: null, depth: 1, walk);
+        return walk.Collector.Build(SourceFormat.Xml);
     }
 
-    private static void VisitElement(XElement element, string? parent, int depth, int maxDepth, SourceFieldCollector collector)
+    private static void VisitElement(XElement element, string? parent, int depth, XmlWalk walk)
     {
-        if (depth > maxDepth)
+        if (depth > walk.MaxDepth)
         {
-            throw new InvalidSourceDocumentException($"The source document exceeds the maximum depth of {maxDepth}.");
+            throw new InvalidSourceDocumentException($"The source document exceeds the maximum depth of {walk.MaxDepth}.");
         }
 
+        var collector = walk.Collector;
         AddAttributes(element, parent, collector);
 
         // Group repeated siblings while keeping the order of first appearance.
@@ -74,7 +75,7 @@ internal static class XmlFlattener
             var child = elements[0];
             if (child.HasElements)
             {
-                VisitElement(child, path, depth + 1, maxDepth, collector);
+                VisitElement(child, path, depth + 1, walk);
                 continue;
             }
 
@@ -86,20 +87,17 @@ internal static class XmlFlattener
 
     private static void AddAttributes(XElement element, string? parent, SourceFieldCollector collector)
     {
-        foreach (var attribute in element.Attributes())
+        foreach (var attribute in element.Attributes().Where(IsDataAttribute))
         {
-            if (attribute.IsNamespaceDeclaration || attribute.Name.Namespace == Xsi)
-            {
-                continue;
-            }
-
             var name = attribute.Name.LocalName;
             collector.Add(new SourceField(SourcePath.Append(parent, "@" + name), name, ValueKindInference.FromText(attribute.Value), attribute.Value));
         }
     }
 
-    private static bool IsSimple(XElement element) =>
-        !element.HasElements && !element.Attributes().Any(a => !a.IsNamespaceDeclaration && a.Name.Namespace != Xsi);
+    private static bool IsSimple(XElement element) => !element.HasElements && !element.Attributes().Any(IsDataAttribute);
+
+    /// <summary>Namespace declarations and <c>xsi:*</c> attributes are markup, not data.</summary>
+    private static bool IsDataAttribute(XAttribute attribute) => !attribute.IsNamespaceDeclaration && attribute.Name.Namespace != Xsi;
 
     /// <summary>Returns the element text, or null for empty and <c>xsi:nil</c> elements.</summary>
     private static string? TextOf(XElement element)
@@ -111,4 +109,6 @@ internal static class XmlFlattener
 
         return element.IsEmpty || element.Value.Length == 0 ? null : element.Value;
     }
+
+    private sealed record XmlWalk(int MaxDepth, SourceFieldCollector Collector);
 }

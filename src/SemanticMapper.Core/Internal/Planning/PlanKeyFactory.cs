@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using SemanticMapper.Caching;
@@ -29,8 +28,7 @@ internal static class PlanKeyFactory
             .Append(FormatVersion).Append('\n')
             .Append("matcher:").Append(matcherVersion).Append('\n')
             .Append("destination:").Append(destinationFingerprint).Append('\n')
-            .Append(CultureInfo.InvariantCulture, $"policy:{options.MinimumConfidence:R}|{options.MinimumConfidenceGap:R}|{options.OnLowConfidence}|{options.OnAmbiguousMatch}")
-            .Append('\n');
+            .Append("policy:").Append(options.PolicyFingerprint).Append('\n');
 
         foreach (var path in sourceFields.Select(f => f.IsArray ? f.Path + "[]" : f.Path).Order(StringComparer.Ordinal))
         {

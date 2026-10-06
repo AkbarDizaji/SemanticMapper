@@ -18,10 +18,9 @@ internal static class TargetSchemaBuilder
             throw new UnsupportedDestinationTypeException(type, "the destination must be an object with properties, not a scalar or collection.");
         }
 
-        // NullabilityInfoContext is not thread-safe, so each build uses its own.
-        var nullability = new NullabilityInfoContext();
-        var members = new List<TargetMember>();
-        Visit(type, pathPrefix: null, [], [type], depth: 1, maxDepth, nullability, members);
+        var walk = new SchemaWalk(type, maxDepth);
+        Visit(type, pathPrefix: null, [], depth: 1, walk);
+        var members = walk.Members;
 
         if (members.Count == 0)
         {
@@ -45,15 +44,7 @@ internal static class TargetSchemaBuilder
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
 
-    private static void Visit(
-        Type type,
-        string? pathPrefix,
-        List<PropertyInfo> chain,
-        HashSet<Type> ancestors,
-        int depth,
-        int maxDepth,
-        NullabilityInfoContext nullability,
-        List<TargetMember> members)
+    private static void Visit(Type type, string? pathPrefix, List<PropertyInfo> chain, int depth, SchemaWalk walk)
     {
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetIndexParameters().Length == 0 && p.SetMethod is { IsPublic: true })
@@ -68,16 +59,16 @@ internal static class TargetSchemaBuilder
 
             if (TypeClassifier.TryGetScalarKind(propertyType, out var kind))
             {
-                members.Add(new TargetMember(CreateField(path, property, kind, isCollection: false, nullability), propertyChain, elementType: null));
+                walk.Members.Add(new TargetMember(CreateField(path, property, kind, isCollection: false, walk.Nullability), propertyChain, elementType: null));
             }
             else if (TypeClassifier.TryGetScalarCollection(propertyType, out var elementType, out var elementKind))
             {
-                members.Add(new TargetMember(CreateField(path, property, elementKind, isCollection: true, nullability), propertyChain, elementType));
+                walk.Members.Add(new TargetMember(CreateField(path, property, elementKind, isCollection: true, walk.Nullability), propertyChain, elementType));
             }
-            else if (IsNestedObject(propertyType) && depth < maxDepth && ancestors.Add(propertyType))
+            else if (IsNestedObject(propertyType) && depth < walk.MaxDepth && walk.Ancestors.Add(propertyType))
             {
-                Visit(propertyType, path, propertyChain, ancestors, depth + 1, maxDepth, nullability, members);
-                ancestors.Remove(propertyType);
+                Visit(propertyType, path, propertyChain, depth + 1, walk);
+                walk.Ancestors.Remove(propertyType);
             }
         }
     }
@@ -123,5 +114,19 @@ internal static class TargetSchemaBuilder
         {
             throw new UnsupportedDestinationTypeException(root, "it must have a public parameterless constructor.");
         }
+    }
+
+    /// <summary>The state shared by every level of one schema walk.</summary>
+    private sealed class SchemaWalk(Type root, int maxDepth)
+    {
+        public int MaxDepth { get; } = maxDepth;
+
+        // NullabilityInfoContext is not thread-safe, so each build uses its own.
+        public NullabilityInfoContext Nullability { get; } = new();
+
+        public List<TargetMember> Members { get; } = [];
+
+        /// <summary>The types on the current path, used to stop at recursive type graphs.</summary>
+        public HashSet<Type> Ancestors { get; } = [root];
     }
 }

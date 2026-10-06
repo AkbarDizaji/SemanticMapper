@@ -99,6 +99,36 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         ArgumentNullException.ThrowIfNull(candidates);
         cancellationToken.ThrowIfCancellationRequested();
 
+        EnsureCanMatch(candidates);
+        if (candidates.Count == 0)
+        {
+            return FieldMatchResult.NoMatch;
+        }
+
+        var labels = candidates.Select(c => c.Path).ToList();
+        var noneLabel = CreateNoneLabel(labels);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.Timeout);
+        using var request = CreateRequest(BuildRequest(source, candidates, noneLabel));
+
+        var stopwatch = Stopwatch.StartNew();
+        using var response = await SendAsync(request, source.Path, timeout.Token, cancellationToken).ConfigureAwait(false);
+        var info = new ResponseInfo(response.StatusCode, GetRequestId(response));
+        if (!response.IsSuccessStatusCode)
+        {
+            LogRequestFailed(_logger, source.Path, (int)info.StatusCode, info.RequestId);
+            throw CreateError(info);
+        }
+
+        var json = await ReadBodyAsync(response, info, timeout.Token, cancellationToken).ConfigureAwait(false);
+        var result = ParseResponse(json, candidates, noneLabel, info);
+        LogRequestCompleted(_logger, source.Path, candidates.Count, stopwatch.ElapsedMilliseconds, info.RequestId);
+        return result;
+    }
+
+    private void EnsureCanMatch(IReadOnlyList<TargetField> candidates)
+    {
         if (_apiKey is null)
         {
             throw new JevAuthenticationException(
@@ -106,69 +136,60 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
                 $"the configuration key '{JevDefaults.ApiKeyConfigurationKey}', or the environment variable '{JevDefaults.ApiKeyEnvironmentVariable}'.");
         }
 
-        if (candidates.Count == 0)
-        {
-            return FieldMatchResult.NoMatch;
-        }
-
         if (candidates.Count >= MaxChoiceOptions)
         {
             throw new JevException(
                 $"The destination type has {candidates.Count} candidate properties; the Jev provider supports at most {MaxChoiceOptions - 1}.");
         }
+    }
 
-        var labels = candidates.Select(c => c.Path).ToList();
-        var noneLabel = CreateNoneLabel(labels);
-        var body = BuildRequest(source, candidates, noneLabel);
-
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(_options.Timeout);
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, "v1/systemone"))
+    private HttpRequestMessage CreateRequest(string body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, "v1/systemone"))
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return request;
+    }
 
-        var stopwatch = Stopwatch.StartNew();
-        HttpResponseMessage response;
+    /// <summary>Sends the request, translating transport failures and timeouts into <see cref="JevApiException"/>.</summary>
+    private async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        string sourcePath,
+        CancellationToken timeoutToken,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            response = await _createClient().SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
+            return await _createClient().SendAsync(request, HttpCompletionOption.ResponseContentRead, timeoutToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            LogRequestFailed(_logger, source.Path, null, null);
+            LogRequestFailed(_logger, sourcePath, null, null);
             throw new JevApiException($"The TypeSafe request timed out after {_options.Timeout.TotalSeconds:0.#} seconds.", null, null, ex);
         }
         catch (HttpRequestException ex)
         {
-            LogRequestFailed(_logger, source.Path, null, null);
+            LogRequestFailed(_logger, sourcePath, null, null);
             throw new JevApiException("The TypeSafe API could not be reached.", null, null, ex);
         }
+    }
 
-        using (response)
+    private static async Task<string> ReadBodyAsync(
+        HttpResponseMessage response,
+        ResponseInfo info,
+        CancellationToken timeoutToken,
+        CancellationToken cancellationToken)
+    {
+        try
         {
-            var requestId = GetRequestId(response);
-            if (!response.IsSuccessStatusCode)
-            {
-                LogRequestFailed(_logger, source.Path, (int)response.StatusCode, requestId);
-                throw CreateError(response.StatusCode, requestId);
-            }
-
-            string json;
-            try
-            {
-                json = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new JevApiException("Timed out while reading the TypeSafe response.", response.StatusCode, requestId, ex);
-            }
-
-            var result = ParseResponse(json, candidates, noneLabel, response.StatusCode, requestId);
-            LogRequestCompleted(_logger, source.Path, candidates.Count, stopwatch.ElapsedMilliseconds, requestId);
-            return result;
+            return await response.Content.ReadAsStringAsync(timeoutToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new JevApiException("Timed out while reading the TypeSafe response.", info.StatusCode, info.RequestId, ex);
         }
     }
 
@@ -224,8 +245,7 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         string json,
         IReadOnlyList<TargetField> candidates,
         string noneLabel,
-        HttpStatusCode statusCode,
-        string? requestId)
+        ResponseInfo info)
     {
         try
         {
@@ -233,7 +253,7 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
             if (!document.RootElement.TryGetProperty("answers", out var answers)
                 || !answers.TryGetProperty(QuestionId, out var answer))
             {
-                throw new JevApiException("The TypeSafe response did not contain an answer to the matching question.", statusCode, requestId);
+                throw new JevApiException("The TypeSafe response did not contain an answer to the matching question.", info.StatusCode, info.RequestId);
             }
 
             var probabilities = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -254,7 +274,7 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
             }
             else
             {
-                throw new JevApiException("The TypeSafe response did not contain choice probabilities.", statusCode, requestId);
+                throw new JevApiException("The TypeSafe response did not contain choice probabilities.", info.StatusCode, info.RequestId);
             }
 
             var scores = candidates
@@ -264,19 +284,19 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         }
         catch (JsonException ex)
         {
-            throw new JevApiException("The TypeSafe response was not valid JSON.", statusCode, requestId, ex);
+            throw new JevApiException("The TypeSafe response was not valid JSON.", info.StatusCode, info.RequestId, ex);
         }
     }
 
-    private static JevException CreateError(HttpStatusCode statusCode, string? requestId) => statusCode switch
+    private static JevException CreateError(ResponseInfo info) => info.StatusCode switch
     {
-        HttpStatusCode.Unauthorized => new JevAuthenticationException("TypeSafe rejected the API key (HTTP 401). Check that the key is valid.", statusCode, requestId),
-        HttpStatusCode.Forbidden => new JevAuthenticationException("The TypeSafe API key is not permitted to use this model or endpoint (HTTP 403).", statusCode, requestId),
-        HttpStatusCode.TooManyRequests => new JevApiException("TypeSafe rate limit exceeded (HTTP 429). Retry later with backoff.", statusCode, requestId),
+        HttpStatusCode.Unauthorized => new JevAuthenticationException("TypeSafe rejected the API key (HTTP 401). Check that the key is valid.", info.StatusCode, info.RequestId),
+        HttpStatusCode.Forbidden => new JevAuthenticationException("The TypeSafe API key is not permitted to use this model or endpoint (HTTP 403).", info.StatusCode, info.RequestId),
+        HttpStatusCode.TooManyRequests => new JevApiException("TypeSafe rate limit exceeded (HTTP 429). Retry later with backoff.", info.StatusCode, info.RequestId),
         _ => new JevApiException(
-            string.Create(CultureInfo.InvariantCulture, $"TypeSafe returned HTTP {(int)statusCode}{(requestId is null ? "" : $" (request {requestId})")}."),
-            statusCode,
-            requestId),
+            string.Create(CultureInfo.InvariantCulture, $"TypeSafe returned HTTP {(int)info.StatusCode}{(info.RequestId is null ? "" : $" (request {info.RequestId})")}."),
+            info.StatusCode,
+            info.RequestId),
     };
 
     private static string? GetRequestId(HttpResponseMessage response)
@@ -333,6 +353,9 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         FieldValueKind.Null => "empty value",
         _ => "value",
     };
+
+    /// <summary>The metadata of a TypeSafe response that is attached to errors.</summary>
+    private readonly record struct ResponseInfo(HttpStatusCode StatusCode, string? RequestId);
 
     [LoggerMessage(EventId = 100, EventName = "JevRequestCompleted", Level = LogLevel.Debug,
         Message = "TypeSafe Jev scored {CandidateCount} candidates for source field {SourcePath} in {ElapsedMilliseconds} ms (request {RequestId})")]
