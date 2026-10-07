@@ -157,6 +157,54 @@ public class ValueConversionTests
     }
 
     [Fact]
+    public async Task Negative_and_exponent_numbers_convert_to_numeric_types()
+    {
+        var value = await MapAsync("""{ "Count": "-7", "Amount": "-0.001", "Ratio": "-1.5e2" }""");
+
+        Assert.Equal(-7, value.Count);
+        Assert.Equal(-0.001m, value.Amount);
+        Assert.Equal(-150.0, value.Ratio);
+    }
+
+    [Fact]
+    public async Task Dates_without_an_offset_are_treated_as_utc_for_date_time_offsets()
+    {
+        var value = await MapAsync("""{ "When": "2024-01-02T03:04:05Z", "WhenOffset": "2024-01-02T03:04:05" }""");
+
+        Assert.Equal(DateTimeKind.Utc, value.When.Kind);
+        Assert.Equal(new DateTimeOffset(2024, 1, 2, 3, 4, 5, TimeSpan.Zero), value.WhenOffset);
+    }
+
+    [Fact]
+    public async Task Numeric_text_converts_to_a_defined_enum_member()
+    {
+        var value = await MapAsync("""{ "Status": "1" }""");
+
+        Assert.Equal(AccountStatus.Suspended, value.Status);
+    }
+
+    [Fact]
+    public async Task Relative_uris_are_accepted()
+    {
+        var value = await MapAsync("""{ "Website": "/profile/42" }""");
+
+        Assert.NotNull(value.Website);
+        Assert.False(value.Website.IsAbsoluteUri);
+        Assert.Equal("/profile/42", value.Website.OriginalString);
+    }
+
+    [Fact]
+    public async Task Empty_arrays_convert_to_empty_collections()
+    {
+        var value = await MapAsync("""{ "Tags": [], "Scores": [], "Ids": [] }""");
+
+        Assert.Empty(value.Tags);
+        Assert.Empty(value.Scores);
+        Assert.NotNull(value.Ids);
+        Assert.Empty(value.Ids);
+    }
+
+    [Fact]
     public async Task Xml_values_convert_the_same_way_as_json()
     {
         var matcher = new FakeSemanticFieldMatcher()
