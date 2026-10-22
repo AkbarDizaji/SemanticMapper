@@ -60,6 +60,7 @@ public class WithUnsettable
     public string? Settable { get; set; }
     public string? InitOnly { get; init; }
     public string Computed => Settable ?? "";
+    // ReSharper disable once UnusedAutoPropertyAccessor.Local — the mapper must skip private setters
     public string? PrivateSet { get; private set; }
 }
 
@@ -73,6 +74,4 @@ public class NoDefaultConstructor(string name)
     public string Name { get; set; } = name;
 }
 
-public class NoProperties
-{
-}
+public class NoProperties;

@@ -95,7 +95,7 @@ internal static class TargetSchemaBuilder
     }
 
     private static bool IsNestedObject(Type type) =>
-        type.IsClass && !type.IsAbstract && type != typeof(string) && !typeof(System.Collections.IEnumerable).IsAssignableFrom(type)
+        type is { IsClass: true, IsAbstract: false } && type != typeof(string) && !typeof(System.Collections.IEnumerable).IsAssignableFrom(type)
         && type.GetConstructor(Type.EmptyTypes) is not null;
 
     private static void EnsureConstructible(Type root, Type type)

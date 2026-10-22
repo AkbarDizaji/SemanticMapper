@@ -26,7 +26,7 @@ public class JevServiceCollectionTests
     public void Explicit_key_takes_precedence_over_configuration()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(Configuration("from-config"));
+        services.AddSingleton(Configuration("from-config"));
         services.AddSemanticMapper().UseJev(o => o.ApiKey = "explicit");
 
         using var provider = services.BuildServiceProvider();
@@ -38,7 +38,7 @@ public class JevServiceCollectionTests
     public void Configuration_key_is_used_when_no_explicit_key_is_set()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(Configuration("from-config"));
+        services.AddSingleton(Configuration("from-config"));
         services.AddSemanticMapper().UseJev();
 
         using var provider = services.BuildServiceProvider();
@@ -56,7 +56,7 @@ public class JevServiceCollectionTests
         services.AddSemanticMapper().UseJev(o => o.ApiKey = "k");
         services.AddHttpClient(JevDefaults.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var result = await provider.GetRequiredService<ISemanticMapper>()
             .MapAsync<Person>("""{ "given_name": "Akbar" }""", TestContext.Current.CancellationToken);
 
@@ -72,6 +72,7 @@ public class JevServiceCollectionTests
         .AddInMemoryCollection(new Dictionary<string, string?> { ["TypeSafe:ApiKey"] = key })
         .Build();
 
+    // ReSharper disable once MemberCanBePrivate.Global — public so the mapper can populate it by reflection
     public sealed class Person
     {
         public string? FirstName { get; set; }

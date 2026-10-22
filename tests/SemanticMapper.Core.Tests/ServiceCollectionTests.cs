@@ -59,9 +59,10 @@ public class ServiceCollectionTests
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<ISemanticMapper>());
+        Assert.Throws<OptionsValidationException>(provider.GetRequiredService<ISemanticMapper>);
     }
 
+    // ReSharper disable once ClassNeverInstantiated.Local — created by the DI container
     private sealed class NullCache : IMappingPlanCache
     {
         public ValueTask<MappingPlan?> GetAsync(MappingPlanKey key, CancellationToken cancellationToken = default) => ValueTask.FromResult<MappingPlan?>(null);

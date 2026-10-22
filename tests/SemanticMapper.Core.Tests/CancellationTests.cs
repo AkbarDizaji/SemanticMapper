@@ -15,6 +15,7 @@ public class CancellationTests
         {
             Assert.True(token.CanBeCanceled);
             Assert.False(token.IsCancellationRequested);
+            // ReSharper disable once AccessToDisposedClosure — runs before cts is disposed
             await cts.CancelAsync();
             observedCancellation = token.IsCancellationRequested;
         };
@@ -33,6 +34,7 @@ public class CancellationTests
         var matcher = MappingTests.CustomerMatcher();
         matcher.OnMatch = async (_, token) =>
         {
+            // ReSharper disable once AccessToDisposedClosure — runs before cts is disposed
             await cts.CancelAsync();
             await Task.Delay(Timeout.Infinite, token);
         };

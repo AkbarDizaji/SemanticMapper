@@ -217,6 +217,7 @@ public class JevSemanticFieldMatcherTests
         var observed = false;
         var matcher = CreateMatcher(new StubHttpMessageHandler(async (_, token) =>
         {
+            // ReSharper disable once AccessToDisposedClosure — runs before cts is disposed
             await cts.CancelAsync();
             observed = token.IsCancellationRequested;
             token.ThrowIfCancellationRequested();

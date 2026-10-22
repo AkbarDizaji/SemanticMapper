@@ -53,6 +53,7 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         IHttpClientFactory httpClientFactory,
         IOptions<JevMatcherOptions> options,
         ILogger<JevSemanticFieldMatcher>? logger = null)
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract — a null options must reach the ArgumentNullException check
         : this(() => httpClientFactory.CreateClient(JevDefaults.HttpClientName), options?.Value!, logger)
     {
         ArgumentNullException.ThrowIfNull(httpClientFactory);
@@ -73,7 +74,7 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.BaseAddress);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Model);
-        if (options.Timeout <= TimeSpan.Zero && options.Timeout != System.Threading.Timeout.InfiniteTimeSpan)
+        if (options.Timeout <= TimeSpan.Zero && options.Timeout != Timeout.InfiniteTimeSpan)
         {
             throw new ArgumentOutOfRangeException(nameof(options), options.Timeout, $"{nameof(JevMatcherOptions.Timeout)} must be positive.");
         }

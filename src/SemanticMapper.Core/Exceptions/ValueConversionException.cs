@@ -30,6 +30,7 @@ public class ValueConversionException : SemanticMapperException
     /// <param name="targetType">The destination property type.</param>
     /// <param name="innerException">The underlying exception, if any.</param>
     public ValueConversionException(string sourcePath, string targetPath, Type targetType, Exception? innerException = null)
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract — callers may pass null
         : base($"The value of source field '{sourcePath}' could not be converted to '{targetType?.Name}' for property '{targetPath}'.", innerException)
     {
         SourcePath = sourcePath;

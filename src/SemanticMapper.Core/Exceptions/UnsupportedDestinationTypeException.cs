@@ -27,6 +27,7 @@ public class UnsupportedDestinationTypeException : SemanticMapperException
     /// <param name="destinationType">The unsupported type.</param>
     /// <param name="reason">Why the type is unsupported.</param>
     public UnsupportedDestinationTypeException(Type destinationType, string reason)
+        // ReSharper disable once ConditionalAccessQualifierIsNonNullableAccordingToAPIContract — callers may pass null
         : base($"Type '{destinationType?.FullName}' cannot be used as a mapping destination: {reason}")
     {
         DestinationType = destinationType;

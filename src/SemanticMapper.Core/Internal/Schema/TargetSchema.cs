@@ -10,15 +10,12 @@ internal sealed class TargetSchema
     public TargetSchema(Type type, IReadOnlyList<TargetMember> members, string fingerprint)
     {
         Type = type;
-        Members = members;
         Fields = [.. members.Select(m => m.Field)];
         Fingerprint = fingerprint;
         _byPath = members.ToDictionary(m => m.Field.Path, StringComparer.Ordinal);
     }
 
     public Type Type { get; }
-
-    public IReadOnlyList<TargetMember> Members { get; }
 
     public IReadOnlyList<TargetField> Fields { get; }
 

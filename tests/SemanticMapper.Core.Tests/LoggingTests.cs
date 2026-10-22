@@ -55,8 +55,8 @@ public class LoggingTests
         Assert.True(logger.Contains("NoSemanticMatch"));
 
         var selected = logger.Entries.First(e => e.EventId.Name == "CandidateSelected");
-        Assert.Contains(selected.State, p => p.Key == "SourcePath" && Equals(p.Value, "given_name"));
-        Assert.Contains(selected.State, p => p.Key == "TargetPath" && Equals(p.Value, "FirstName"));
+        Assert.Contains(selected.State, p => p is { Key: "SourcePath", Value: "given_name" });
+        Assert.Contains(selected.State, p => p is { Key: "TargetPath", Value: "FirstName" });
         Assert.Contains(selected.State, p => p.Key == "Confidence");
         Assert.Equal(LogLevel.Warning, logger.Entries.First(e => e.EventId.Name == "LowConfidenceMatch").Level);
     }

@@ -11,6 +11,7 @@ namespace SemanticMapper.Jev.Tests;
 [Trait("Category", "Integration")]
 public class JevIntegrationTests
 {
+    // ReSharper disable once MemberCanBePrivate.Global — public so the mapper can populate it by reflection
     public sealed class Customer
     {
         public string FirstName { get; set; } = "";

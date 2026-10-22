@@ -40,6 +40,7 @@ internal static class XmlFlattener
         return walk.Collector.Build(SourceFormat.Xml);
     }
 
+    // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local — depth exists to enforce MaxDepth
     private static void VisitElement(XElement element, string? parent, int depth, XmlWalk walk)
     {
         if (depth > walk.MaxDepth)
