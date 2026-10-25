@@ -13,14 +13,21 @@ internal static class ValueConverter
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
     /// <summary>Converts a source field for a destination member.</summary>
+    /// <param name="source">The source field.</param>
+    /// <param name="member">The destination member.</param>
+    /// <param name="allowSingleItemList">
+    /// True when a scalar may fill a collection as its only item, for formats such as XML where a
+    /// one-item list cannot be told apart from a single value. A null scalar becomes an empty collection.
+    /// </param>
+    /// <param name="result">The converted value.</param>
     /// <returns>False when the value is null and the property is a non-nullable value type, meaning it keeps its default.</returns>
-    public static bool TryConvert(SourceField source, TargetMember member, out object? result)
+    public static bool TryConvert(SourceField source, TargetMember member, bool allowSingleItemList, out object? result)
     {
         try
         {
             if (member.ElementType is { } elementType)
             {
-                result = ConvertCollection(source, member.Field.PropertyType, elementType);
+                result = ConvertCollection(source, member.Field.PropertyType, elementType, allowSingleItemList);
                 return true;
             }
 
@@ -46,15 +53,19 @@ internal static class ValueConverter
         }
     }
 
-    private static object ConvertCollection(SourceField source, Type collectionType, Type elementType)
+    private static object ConvertCollection(SourceField source, Type collectionType, Type elementType, bool allowSingleItemList)
     {
-        if (!source.IsArray)
+        if (!source.IsArray && !allowSingleItemList)
         {
             throw new FormatException("A scalar cannot be assigned to a collection property.");
         }
 
+        IReadOnlyList<string?> items = source.IsArray ? source.Items
+            : source.Value is null ? []
+            : [source.Value];
+
         var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
-        foreach (var item in source.Items)
+        foreach (var item in items)
         {
             if (item is null)
             {

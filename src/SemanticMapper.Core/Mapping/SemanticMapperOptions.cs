@@ -35,6 +35,13 @@ public sealed class SemanticMapperOptions
     public int MaxDepth { get; set; } = 32;
 
     /// <summary>
+    /// Gets or sets how long a plan rejected by the confidence rules is remembered. While it is, documents
+    /// with the same shape fail with <see cref="Exceptions.UnsafeMappingException"/> without calling the
+    /// matcher again. <see cref="TimeSpan.Zero"/> disables this. Default 1 minute.
+    /// </summary>
+    public TimeSpan RejectedPlanRetryDelay { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
     /// Gets a stable description of every option that affects mapping decisions, for use in plan keys.
     /// Options that only affect execution (concurrency, depth) are not part of it.
     /// </summary>

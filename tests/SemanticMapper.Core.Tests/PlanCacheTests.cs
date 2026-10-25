@@ -2,6 +2,7 @@ using SemanticMapper.Caching;
 using SemanticMapper.Core.Tests.Infrastructure;
 using SemanticMapper.Exceptions;
 using SemanticMapper.Mapping;
+using SemanticMapper.Matching;
 
 namespace SemanticMapper.Core.Tests;
 
@@ -121,15 +122,100 @@ public class PlanCacheTests
     }
 
     [Fact]
-    public async Task Rejected_mappings_are_not_cached()
+    public async Task Rejected_mappings_are_not_stored_in_the_plan_cache()
+    {
+        var cache = new RecordingCache();
+        var matcher = new FakeSemanticFieldMatcher().Score("name", ("FirstName", 0.3));
+        var mapper = MapperFactory.Create(matcher, o => o.OnLowConfidence = MappingFailureBehavior.Throw, cache);
+
+        await Assert.ThrowsAsync<UnsafeMappingException>(() => mapper.MapAsync<Customer>("""{ "name": "A" }""", Ct));
+
+        Assert.Empty(cache.Stored);
+    }
+
+    [Fact]
+    public async Task Rejected_shape_is_remembered_so_retries_do_not_call_the_matcher_again()
     {
         var matcher = new FakeSemanticFieldMatcher().Score("name", ("FirstName", 0.3));
         var mapper = MapperFactory.Create(matcher, o => o.OnLowConfidence = MappingFailureBehavior.Throw);
 
         await Assert.ThrowsAsync<UnsafeMappingException>(() => mapper.MapAsync<Customer>("""{ "name": "A" }""", Ct));
+        var second = await Assert.ThrowsAsync<UnsafeMappingException>(() => mapper.MapAsync<Customer>("""{ "name": "B" }""", Ct));
+
+        Assert.Equal(1, matcher.CallCount);
+        Assert.Equal("FirstName", Assert.Single(second.FailedDecisions).SelectedTargetPath);
+    }
+
+    [Fact]
+    public async Task Rejected_shape_is_retried_when_remembering_rejections_is_disabled()
+    {
+        var matcher = new FakeSemanticFieldMatcher().Score("name", ("FirstName", 0.3));
+        var mapper = MapperFactory.Create(matcher, o =>
+        {
+            o.OnLowConfidence = MappingFailureBehavior.Throw;
+            o.RejectedPlanRetryDelay = TimeSpan.Zero;
+        });
+
+        await Assert.ThrowsAsync<UnsafeMappingException>(() => mapper.MapAsync<Customer>("""{ "name": "A" }""", Ct));
         await Assert.ThrowsAsync<UnsafeMappingException>(() => mapper.MapAsync<Customer>("""{ "name": "A" }""", Ct));
 
         Assert.Equal(2, matcher.CallCount);
+    }
+
+    [Fact]
+    public async Task Concurrent_mappings_of_a_new_shape_share_one_plan_build()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var matcher = MappingTests.CustomerMatcher();
+        matcher.OnMatch = (_, _) => release.Task;
+        var mapper = MapperFactory.Create(matcher);
+
+        var mappings = Enumerable.Range(0, 10).Select(i => mapper.MapAsync<Customer>(
+            $$"""{ "given_name": "N{{i}}", "surname": "S", "dob": "1990-01-01", "identity_no": "{{i}}" }""", Ct)).ToList();
+        release.SetResult();
+        var results = await Task.WhenAll(mappings);
+
+        Assert.Equal(4, matcher.CallCount);
+        Assert.All(results, (r, i) => Assert.Equal($"N{i}", r.Value.FirstName));
+    }
+
+    [Fact]
+    public async Task Waiter_rebuilds_the_plan_when_the_caller_that_started_the_build_cancels()
+    {
+        using var cts = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var matcher = MappingTests.CustomerMatcher();
+        var first = true;
+        matcher.OnMatch = async (_, token) =>
+        {
+            if (Interlocked.Exchange(ref first, false))
+            {
+                started.SetResult();
+                await Task.Delay(Timeout.Infinite, token);
+            }
+        };
+        var mapper = MapperFactory.Create(matcher);
+        const string json = """{ "given_name": "A" }""";
+
+        var cancelled = mapper.MapAsync<Customer>(json, cts.Token);
+        await started.Task;
+        var waiter = mapper.MapAsync<Customer>(json, Ct);
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelled);
+        Assert.Equal("A", (await waiter).Value.FirstName);
+    }
+
+    [Fact]
+    public async Task Null_source_values_are_offered_to_the_matcher_as_unknown_kind()
+    {
+        var matcher = MappingTests.CustomerMatcher();
+        var mapper = MapperFactory.Create(matcher);
+
+        await mapper.MapAsync<Customer>("""{ "given_name": "A", "dob": null }""", Ct);
+
+        var dob = Assert.Single(matcher.Calls, c => c.Path == "dob");
+        Assert.Equal(FieldValueKind.Unknown, dob.ValueKind);
     }
 
     [Fact]

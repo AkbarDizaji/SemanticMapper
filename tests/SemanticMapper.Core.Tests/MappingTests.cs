@@ -93,6 +93,44 @@ public class MappingTests
     }
 
     [Fact]
+    public async Task Xml_single_elements_are_also_offered_collection_candidates()
+    {
+        var matcher = new FakeSemanticFieldMatcher();
+        var mapper = MapperFactory.Create(matcher);
+
+        await mapper.MapAsync<AllTypes>("<r><labels><label>a</label></labels></r>", TestContext.Current.CancellationToken);
+
+        var candidates = Assert.Single(matcher.CandidateLists);
+        Assert.Contains(candidates, t => t.IsCollection);
+        Assert.Contains(candidates, t => !t.IsCollection);
+    }
+
+    [Theory]
+    [InlineData("<r><labels><label>a</label></labels></r>", new[] { "a" })]
+    [InlineData("<r><labels><label>a</label><label>b</label></labels></r>", new[] { "a", "b" })]
+    [InlineData("<r><labels><label/></labels></r>", new string[0])]
+    public async Task Xml_list_with_any_number_of_items_fills_a_collection(string xml, string[] expected)
+    {
+        var matcher = new FakeSemanticFieldMatcher().Score("labels.label", ("Tags", 0.95));
+        var mapper = MapperFactory.Create(matcher);
+
+        var result = await mapper.MapAsync<AllTypes>(xml, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, result.Value.Tags);
+    }
+
+    [Fact]
+    public async Task Json_scalar_is_still_not_offered_collection_candidates()
+    {
+        var matcher = new FakeSemanticFieldMatcher();
+        var mapper = MapperFactory.Create(matcher);
+
+        await mapper.MapAsync<AllTypes>("""{ "label": "a" }""", TestContext.Current.CancellationToken);
+
+        Assert.All(Assert.Single(matcher.CandidateLists), t => Assert.False(t.IsCollection));
+    }
+
+    [Fact]
     public async Task Null_input_throws_ArgumentNullException()
     {
         var mapper = MapperFactory.Create(new FakeSemanticFieldMatcher());

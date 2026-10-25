@@ -157,7 +157,7 @@ result.Diagnostics.UnmappedTargetPaths;         // properties nothing mapped to
 result.UsedCachedPlan;                          // true = no provider call was made
 ```
 
-The mapper caches a plan for each input shape. Later documents with the same field paths skip the provider call, so only the first document of a given shape costs an API request. Diagnostics and logs never contain source values.
+The mapper caches a plan for each input shape. Later documents with the same field paths skip the provider call, so only the first document of a given shape costs an API request. Concurrent documents of a new shape share one plan build. A shape rejected by the confidence rules is remembered for `RejectedPlanRetryDelay` (default 1 minute), so retries of a bad payload fail fast instead of calling the provider again. Diagnostics and logs never contain source values.
 
 ## Optional extras
 
@@ -191,6 +191,7 @@ builder.Services.AddSemanticMapper().UseMatcher<MyMatcher>();
 
 - Input must be JSON or XML.
 - Arrays of objects in the source are skipped and reported in `Diagnostics.UnsupportedSourcePaths`.
+- XML has no array syntax, so a repeated element that appears once is read as a single value. It can still fill a list property, as a one-item list.
 - Only field names, paths and value kinds are sent to TypeSafe. Source values are not sent unless you set `IncludeSourceValues = true` in the Jev options.
 
 ## Build and test

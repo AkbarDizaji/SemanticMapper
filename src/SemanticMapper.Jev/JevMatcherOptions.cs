@@ -28,6 +28,10 @@ public sealed class JevMatcherOptions
     /// Default <see langword="false"/>: only field names, paths and inferred kinds are sent, because
     /// values may contain sensitive data.
     /// </summary>
+    /// <remarks>
+    /// Plans are cached per input shape, so the values only inform the plan built for the first document
+    /// of each shape; later documents with the same field paths reuse that plan whatever their values.
+    /// </remarks>
     public bool IncludeSourceValues { get; set; }
 
     /// <inheritdoc />

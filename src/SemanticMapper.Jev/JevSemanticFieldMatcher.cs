@@ -86,7 +86,8 @@ public sealed partial class JevSemanticFieldMatcher : ISemanticFieldMatcher
     }
 
     /// <inheritdoc />
-    public string Version => $"typesafe-jev:{_options.Model}:{PromptVersion}";
+    /// <remarks>Includes whether source values are sent, because that changes the scores.</remarks>
+    public string Version => $"typesafe-jev:{_options.Model}:{PromptVersion}{(_options.IncludeSourceValues ? ":values" : "")}";
 
     /// <inheritdoc />
     /// <exception cref="JevAuthenticationException">No API key is configured, or TypeSafe rejected it.</exception>

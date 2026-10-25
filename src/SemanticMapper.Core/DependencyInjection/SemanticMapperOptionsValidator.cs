@@ -38,6 +38,11 @@ internal sealed class SemanticMapperOptionsValidator : IValidateOptions<Semantic
             failures.Add($"{nameof(SemanticMapperOptions.MaxDepth)} must be at least 1.");
         }
 
+        if (options.RejectedPlanRetryDelay < TimeSpan.Zero)
+        {
+            failures.Add($"{nameof(SemanticMapperOptions.RejectedPlanRetryDelay)} must not be negative.");
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 

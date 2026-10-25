@@ -129,6 +129,15 @@ public class JevSemanticFieldMatcherTests
     }
 
     [Fact]
+    public void Version_changes_when_source_values_are_sent()
+    {
+        var a = CreateMatcher(new StubHttpMessageHandler(HttpStatusCode.OK, ""), o => o.IncludeSourceValues = false);
+        var b = CreateMatcher(new StubHttpMessageHandler(HttpStatusCode.OK, ""), o => o.IncludeSourceValues = true);
+
+        Assert.NotEqual(a.Version, b.Version);
+    }
+
+    [Fact]
     public async Task Missing_api_key_throws_a_provider_specific_exception_without_calling_the_api()
     {
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TYPESAFE_API_KEY")))

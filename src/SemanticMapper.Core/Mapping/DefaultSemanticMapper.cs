@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -20,13 +21,18 @@ namespace SemanticMapper.Mapping;
 /// and materializes the destination object.
 /// </summary>
 /// <remarks>Instances are thread-safe and intended to be used as singletons.</remarks>
-public sealed class DefaultSemanticMapper : ISemanticMapper
+public sealed class DefaultSemanticMapper : ISemanticMapper, IDisposable
 {
+    // Bounds the memory held by remembered rejections; each entry has size 1.
+    private const int RejectedPlanLimit = 1024;
+
     private readonly ISemanticFieldMatcher _matcher;
     private readonly IMappingPlanCache _cache;
     private readonly SemanticMapperOptions _options;
     private readonly ILogger _logger;
     private readonly ConcurrentDictionary<Type, TargetSchema> _schemas = new();
+    private readonly ConcurrentDictionary<MappingPlanKey, Lazy<Task<MappingPlan>>> _builds = new();
+    private readonly MemoryCache _rejectedPlans = new(new MemoryCacheOptions { SizeLimit = RejectedPlanLimit });
 
     /// <summary>Initializes a new instance.</summary>
     /// <param name="matcher">The semantic matcher used on plan-cache misses.</param>
@@ -75,11 +81,19 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
         {
             Log.PlanCacheHit(_logger, destinationName, key.Value);
         }
+        else if (_rejectedPlans.TryGetValue(key, out MappingPlan? rejected))
+        {
+            plan = rejected!;
+        }
         else
         {
             Log.PlanCacheMiss(_logger, destinationName, key.Value, document.Fields.Count, _matcher.Version);
-            plan = await BuildPlanAsync(document, schema, key, cancellationToken).ConfigureAwait(false);
-            await _cache.SetAsync(plan, cancellationToken).ConfigureAwait(false);
+            plan = await GetOrBuildPlanAsync(document, schema, key, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (IsRejected(plan))
+        {
+            throw new UnsafeMappingException(CreateDiagnostics(document, schema, key, plan.MatcherVersion, plan.Decisions, plan.UnmappedTargetPaths));
         }
 
         var value = Materialize<T>(document, schema, plan);
@@ -87,10 +101,62 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
         return new MappingResult<T>(value, diagnostics, usedCachedPlan);
     }
 
+    /// <inheritdoc />
+    public void Dispose() => _rejectedPlans.Dispose();
+
+    /// <summary>
+    /// Builds the plan for <paramref name="key"/>, sharing one build between concurrent callers so that a
+    /// new input shape costs one round of matcher calls however many documents of it arrive at once.
+    /// </summary>
+    private async Task<MappingPlan> GetOrBuildPlanAsync(SourceDocument document, TargetSchema schema, MappingPlanKey key, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            var build = new Lazy<Task<MappingPlan>>(() => BuildAndStorePlanAsync(document, schema, key, cancellationToken));
+            var shared = _builds.GetOrAdd(key, build);
+            try
+            {
+                // The build already observes the starting caller's token; other callers stop waiting on their own.
+                var task = shared == build ? shared.Value : shared.Value.WaitAsync(cancellationToken);
+                return await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (shared != build && !cancellationToken.IsCancellationRequested)
+            {
+                // The caller that started the shared build cancelled it; start another one.
+            }
+            finally
+            {
+                if (shared == build || shared.Value.IsCompleted)
+                {
+                    _builds.TryRemove(new KeyValuePair<MappingPlanKey, Lazy<Task<MappingPlan>>>(key, shared));
+                }
+            }
+        }
+    }
+
+    private async Task<MappingPlan> BuildAndStorePlanAsync(SourceDocument document, TargetSchema schema, MappingPlanKey key, CancellationToken cancellationToken)
+    {
+        var plan = await BuildPlanAsync(document, schema, key, cancellationToken).ConfigureAwait(false);
+        if (!IsRejected(plan))
+        {
+            await _cache.SetAsync(plan, cancellationToken).ConfigureAwait(false);
+        }
+        else if (_options.RejectedPlanRetryDelay > TimeSpan.Zero)
+        {
+            // Remember the rejection briefly so repeated documents of a rejected shape do not repeat every matcher call.
+            _rejectedPlans.Set(key, plan, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = _options.RejectedPlanRetryDelay });
+        }
+
+        return plan;
+    }
+
+    private static bool IsRejected(MappingPlan plan) => plan.Decisions.Any(d => d.Outcome == DecisionOutcome.Failed);
+
     private async Task<MappingPlan> BuildPlanAsync(SourceDocument document, TargetSchema schema, MappingPlanKey key, CancellationToken cancellationToken)
     {
         var scalarCandidates = schema.Fields.Where(f => !f.IsCollection).ToList();
         var collectionCandidates = schema.Fields.Where(f => f.IsCollection).ToList();
+        var allCandidates = schema.Fields.ToList();
         var rows = new MatchRow[document.Fields.Count];
 
         await Parallel.ForEachAsync(
@@ -99,7 +165,10 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
             async (index, ct) =>
             {
                 var source = document.Fields[index];
-                var candidates = source.IsArray ? collectionCandidates : scalarCandidates;
+                // XML has no array syntax: a list with one item looks like a single element, so it may also fill a collection.
+                var candidates = source.IsArray ? collectionCandidates
+                    : document.Format == SourceFormat.Xml ? allCandidates
+                    : scalarCandidates;
                 rows[index] = candidates.Count == 0
                     ? new MatchRow(source, [], null)
                     : await MatchAsync(source, candidates, ct).ConfigureAwait(false);
@@ -108,19 +177,13 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
         var decisions = AssignmentSolver.Solve(rows, _options);
         LogDecisions(decisions);
 
-        var unmapped = UnmappedTargets(schema, decisions);
-        if (decisions.Any(d => d.Outcome == DecisionOutcome.Failed))
-        {
-            throw new UnsafeMappingException(CreateDiagnostics(document, schema, key, _matcher.Version, decisions, unmapped));
-        }
-
         return new MappingPlan
         {
             Key = key,
             DestinationTypeName = schema.Type.FullName ?? schema.Type.Name,
             MatcherVersion = _matcher.Version,
             Decisions = decisions,
-            UnmappedTargetPaths = unmapped,
+            UnmappedTargetPaths = UnmappedTargets(schema, decisions),
             CreatedAt = DateTimeOffset.UtcNow,
         };
     }
@@ -130,7 +193,7 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
         FieldMatchResult result;
         try
         {
-            result = await _matcher.MatchAsync(source, candidates, cancellationToken).ConfigureAwait(false)
+            result = await _matcher.MatchAsync(HideNull(source), candidates, cancellationToken).ConfigureAwait(false)
                 ?? throw new SemanticMatcherException($"The semantic matcher returned no result for source field '{source.Path}'.");
         }
         catch (Exception ex) when (ex is not SemanticMapperException and not OperationCanceledException)
@@ -160,6 +223,16 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
 
         return new MatchRow(source, scores, result.NoMatchConfidence);
     }
+
+    /// <summary>
+    /// Plans are keyed by field paths only and reused for documents where the field has a value, so the
+    /// matcher must not learn that this particular document happens to hold null there.
+    /// </summary>
+    private static SourceField HideNull(SourceField source) => source.ValueKind != FieldValueKind.Null
+        ? source
+        : source.IsArray
+            ? new SourceField(source.Path, source.Name, FieldValueKind.Unknown, source.Items)
+            : new SourceField(source.Path, source.Name, FieldValueKind.Unknown, source.Value);
 
     private void LogDecisions(IReadOnlyList<FieldMappingDecision> decisions)
     {
@@ -235,7 +308,7 @@ public sealed class DefaultSemanticMapper : ISemanticMapper
             var member = schema.Find(selection.TargetPath)
                 ?? throw new SemanticMapperException($"The mapping plan refers to '{selection.TargetPath}', which does not exist on '{schema.Type.FullName}'.");
 
-            if (ValueConverter.TryConvert(source, member, out var value))
+            if (ValueConverter.TryConvert(source, member, allowSingleItemList: document.Format == SourceFormat.Xml, out var value))
             {
                 Assign(root, member, value);
             }
